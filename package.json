@@ -1,0 +1,23 @@
+{
+  "name": "dissys-project-2018",
+  "version": "1.0.0",
+  "description": "\"Dis sys project 2018\"",
+  "main": "loadBalancer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PalmPTSJ/dissys-project-2018.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PalmPTSJ/dissys-project-2018/issues"
+  },
+  "homepage": "https://github.com/PalmPTSJ/dissys-project-2018#readme",
+  "dependencies": {
+    "socketio": "^1.0.0"
+  }
+}
