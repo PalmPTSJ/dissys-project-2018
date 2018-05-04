@@ -248,6 +248,11 @@
         name:gid
       },x=>{
         console.log(x)
+        groupID = null
+        $('#groupNameResult').html('-')
+        $('#chatArea').html(`<div class="d-flex flex-column justify-content-center align-items-center h-100">
+              <div style="font-size: 20em; color: #231C3B; font-size: 1.6em;">Select one of the groups from the list</div>
+            </div>`)
       });
     }
     function selectGroup(gid){

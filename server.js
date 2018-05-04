@@ -20,8 +20,8 @@ console.log("DB Server: ",dbServerIp);
 
 var mysql      = require('mysql');
 var connectionPool = mysql.createPool({
-    connectionLimit : 5,
-    host     : 'localhost',
+    connectionLimit : 100,
+    host     : dbServerIp,
     user     : config.db.user,
     password : config.db.pass,
     database : 'dissys',
@@ -146,6 +146,7 @@ function queryPromise(requestId,queryString,queryParams) {
     return new Promise((res,rej) => {
         connectionPool.getConnection(async (err, conn) => {
             if(err) {
+                console.log(err)
                 console.log(`[SERV] getConnection error`);
                 rej("GET_CONNECTION_ERROR");
                 return;
