@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/PalmPTSJ/dissys-project-2018#readme",
   "dependencies": {
+    "mysql": "^2.15.0",
+    "node-mysql": "^0.4.2",
     "socket.io-client": "^2.1.0",
     "socketio": "^1.0.0"
   }

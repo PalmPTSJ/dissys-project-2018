@@ -12,43 +12,77 @@ console.log("Load balancer config:");
 console.log("Port: "+port);
 console.log("ServerList: ",serversIp,`(Server count = ${serversIp.length})`);
 
+let requestId = 0;
+let pendingTransactons = [];
+
 let serverConnection = [];
+
+let primaryServer = null;
+
+function setNewPrimaryServer(socket) {
+    console.log(`[LB] New primary server ${socket.serverIP}`);
+    primaryServer = socket;
+    socket.emit('setPrimaryServer');
+    pendingTransactons.forEach(tx => {
+        console.log(`[LB] Retransmitting transaction ${tx.requestId} ${JSON.stringify(tx)} `);
+        socket.emit(tx.event,tx,(resp)=> {
+            console.log(`[LB] Received response ${resp}`);
+            tx.callback(resp);
+        });
+    });
+}
+
+function findNewPrimaryServer() {
+    serverConnection.forEach(socket => {
+        if(socket.connected) {
+            if(primaryServer === null) {
+                setNewPrimaryServer(socket);
+            }
+        }
+    })
+}
+
 // connect to server
 serversIp.forEach(ip => {
     ip = "ws://"+ip;
     let serverSocket = ioclient(ip);
     serverConnection.push(serverSocket);
+    serverSocket.serverIP = ip;
     serverSocket.on('connect', (e) => {
-        console.log(`[LB] Connection to server ${ip} established`);
-        let i = serverConnection.indexOf(serverSocket);
-        if(i == 0) {
-            serverSocket.emit('setPrimaryServer');
+        console.log(`[LB] Connection to server ${serverSocket.serverIP} established`);
+        if(primaryServer === null || !primaryServer.connected) {
+            findNewPrimaryServer();
         }
     });
+    serverSocket.on('reconnect', (e) => {
+        console.log(`[LB] Reconnected to server ${serverSocket.serverIP}`);
+        if(primaryServer === null || !primaryServer.connected) {
+            findNewPrimaryServer();
+        }
+    })
     serverSocket.on('disconnect', () => {
-      console.log(`[LB] Server ${serverSocket.ip} disconencted`);
-      let i = serverConnection.indexOf(serverSocket);
-      serverConnection.splice(i, 1);
-      if(i == 0) {
-          // Primary server was disconnected
-          if(serverConnection.length > 0) {
-              serverConnection[0].emit('setPrimaryServer');
-          }
+      console.log(`[LB] Server ${serverSocket.serverIP} disconencted`);
+      if(serverSocket === primaryServer) {
+          primaryServer = null;
+          console.log(`[LB] Primary server is down`);
+          findNewPrimaryServer();
       }
    });
 });
 
 function forwardRequest(event,data,callback) {
+    data = Object.assign(data,{requestId:requestId++, event: event, callback:callback});
+    pendingTransactons.push(data);
+    console.log(`[LB] Forwarding '${event}' with ${JSON.stringify(data)} as transaction ${data.requestId}`);
     // if no available server
-    if(serverConnection.length === 0) {
-        console.log(`[LB] No server available !!!`)
+    if(primaryServer === null || !primaryServer.connected) {
+        console.log(`[LB] No server available !!!`); 
+        return;
     }
-    if(callback !== undefined) {
-        serverConnection[0].emit(event,data,callback);
-    }
-    else {
-        serverConnection[0].emit(event,data);
-    }
+    primaryServer.emit(event,data,(resp)=>{
+        console.log(`[LB] Received response ${resp}`);
+        callback(resp);
+    });
 }
 
 app.get('/', function(req, res){
@@ -63,21 +97,8 @@ let userId = 0;
 io.on('connection', function(socket){
     socket.userId = userId++;
     console.log(`[LB] New connection, ID: ${socket.userId}`);
-    socket.on('login', ([username]) => {
-        console.log(`[LB] ${socket.userId}: Login as ${username}`);
-        forwardRequest('login',[username]);
-    });
     
-    socket.on('createGroup', ([username, groupId]) => {
-        console.log(`[LB] ${socket.userId}: User ${username} create group ${groupId}`);
-        forwardRequest('createGroup',[username,groupId]);
+    socket.on('request',(data,callback) => {
+        forwardRequest(data.action,data,callback);
     });
-    
-    socket.on('chat', (gid, msg) => {
-        console.log("CHAT",msg);
-    });
-    
-    socket.on('ack', (gid, id) => {
-      
-    })
 });
