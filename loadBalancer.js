@@ -17,6 +17,7 @@ let pendingTransactons = [];
 let serverConnection = [];
 
 let nounceList = new Set();
+let lastNounceTime = 0;
 
 let primaryServer = null;
 
@@ -32,7 +33,7 @@ function setNewPrimaryServer(socket) {
 
 function sendTransaction(tx) {
     if(primaryServer === null || !primaryServer.connected) {
-        console.log(`[LB] No server available !!!`); 
+        console.log(`[LB] No server available ... stored as pending transaction`); 
         return;
     }
     //console.log(`[LB] Sending transaction ${tx.requestId} ${JSON.stringify(tx)} `);
@@ -83,9 +84,15 @@ serversIp.forEach(ip => {
 });
 
 function getNounce() {
+    let time = (new Date()).getTime();
+    if(time != lastNounceTime) {
+        nounceList = new Set();
+    }
+    lastNounceTime = time
     while(true) {
-        let candidate = (new Date()).getTime() + '' + parseInt(Math.random()*10000);
+        let candidate = time + '' + parseInt(Math.random()*1000000);
         if(!nounceList.has(candidate)) {
+            
             return candidate;
         }
     }
@@ -109,7 +116,7 @@ http.listen(port, function(){
 let userId = 0;
 io.on('connection', function(socket){
     socket.userId = userId++;
-    console.log(`[LB] New connection, ID: ${socket.userId}`);
+    console.log(`[LB] New connection, IP: ${socket.request.connection.remoteAddress}, ID:${socket.userId}`);
     
     socket.on('request',(data,callback) => {
         forwardRequest(data.action,data,callback);

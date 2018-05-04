@@ -36,7 +36,7 @@ io.on('connection', function(socket){
     socket.on('login', async (data,callback) => {
         console.log(`[SERV] Login as ${data.username}`);
         try {
-            let result = await queryPromise(data.requestId,'INSERT INTO user_record(username) VALUES (?) WHERE NOT EXISTS (SELECT * FROM user_record WHERE username=?);',[data.username,data.username]);
+            let result = await queryPromise(data.requestId,'INSERT INTO user_record(username) VALUES (?);',[data.username]);
             callback({status:"SUCCESS", result:result});
         }
         catch(e) {
@@ -45,7 +45,7 @@ io.on('connection', function(socket){
     });
     
     socket.on('createGroup',async (data, callback) => {
-        console.log(`[SERV] ${data.username} create group ${data.name}`);
+        console.log(`[SERV] User ${data.username} create group ${data.name}`);
         try {
             let result = await queryPromise(data.requestId,'INSERT INTO group_record(group_id) VALUES (?); INSERT INTO user_join_group(username, group_id) VALUES (?, ?);',[data.name,data.username, data.name]);
             callback({status:"SUCCESS", result:result});
@@ -58,7 +58,7 @@ io.on('connection', function(socket){
     socket.on('joinGroup',async (data, callback) => {
         // data.username    = username
         // data.name        = group name
-        console.log(`[SERV] ${data.username} join group ${data.name}`);
+        console.log(`[SERV] User ${data.username} join group ${data.name}`);
         try {
             let result = await queryPromise(data.requestId,'INSERT INTO user_join_group(username, group_id) VALUES (?, ?);',[data.username, data.name]);
             callback({status:"SUCCESS", result:result});
@@ -107,11 +107,26 @@ io.on('connection', function(socket){
         }
     });
     
+    socket.on('leaveGroup',async (data, callback) => {
+        // data.name    = Group name
+        // data.username = ACKNOWLEDGE
+        //console.log(`[SERV] Get group chat ${data.name}, ${data.ack}`);
+        try {
+            let result = await queryPromise(data.requestId,'DELETE FROM user_join_group WHERE username=? AND group_id=?;',[data.username,data.name]);
+            callback({status:"SUCCESS", result:result});
+        }
+        catch(e) {
+            console.log(`[SERV] ERROR getGroupChat ${data.name}, ${data.ack}`);
+            callback({status:"ERROR", result:e.sql});
+        }
+    });
+    
+    
     socket.on('sendMessage',async (data, callback) => {
         // data.username = Username
         // data.name    = Group name
         // data.message = message
-        console.log(`[SERV] Chat group ${data.username}, ${data.name} TEXT ${data.message}`);
+        console.log(`[SERV] User ${data.username} chat to group ${data.name} TEXT ${data.message}`);
         try {
             let result = await queryPromise(data.requestId,'INSERT INTO message_record(group_id,message_text,message_sender) VALUES(?,?,?);',[data.name, data.message, data.username]);
             callback({status:"SUCCESS", result:result[2]});
@@ -143,7 +158,7 @@ COMMIT;`,
             queryParams,(err,result,field) => {
                 conn.release();
                 if(err) {
-                    console.log("SQL Error",err,err.sql);
+                    //console.log("SQL Error",err,err.sql);
                     rej(err);
                 }
                 res(result);
