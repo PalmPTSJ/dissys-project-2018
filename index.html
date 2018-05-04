@@ -149,6 +149,7 @@
           $('#myGroupResult').append(`<div>
             <span onclick="selectGroup('${y}')">${y} (${unreadCount[y]})</span>
             <span class="float-right" onclick="toggleNotiState('${y}')">${notiState[y]?'&#x1f514;':'&#x1f515'}</span>
+            <span class="float-right" onclick="leaveGroup('${y}')">X</span>
             </div>`)
         })
       });
@@ -158,7 +159,7 @@
       $('#chatArea').append(`<div class="${y.message_sender==username?'my':'your'}">
           <span class="username">${y.message_sender} :</span> <span class="message">${y.message_text}</span> <span class="timestamp">${d.toLocaleTimeString()}</span>
         </div>`)
-      $('#chatArea').animate({scrollTop: $('#chatArea').height()},30)
+      $('#chatArea').animate({scrollTop: 999999999999999},30)
     }
     function updateGroupChat(){
       if(username===null)return
@@ -206,9 +207,22 @@
         name:gid
       },x=>{
         console.log(x)
+        ack[gid] = -1
+        chat[gid] = []
+        notiState[gid]=true
+        unreadCount[gid]=0
       });
       updateJoinedGroup()
       $("#displayGroupModal").modal('hide')
+    }
+    function leaveGroup(gid){
+      socket.emit('request', {
+        action:'leaveGroup',
+        username:username,
+        name:gid
+      },x=>{
+        console.log(x)
+      });
     }
     function selectGroup(gid){
       groupID = gid
