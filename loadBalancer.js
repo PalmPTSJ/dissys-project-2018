@@ -12,10 +12,11 @@ console.log("Load balancer config:");
 console.log("Port: "+port);
 console.log("ServerList: ",serversIp,`(Server count = ${serversIp.length})`);
 
-let requestId = 0;
 let pendingTransactons = [];
 
 let serverConnection = [];
+
+let nounceList = new Set();
 
 let primaryServer = null;
 
@@ -24,11 +25,22 @@ function setNewPrimaryServer(socket) {
     primaryServer = socket;
     socket.emit('setPrimaryServer');
     pendingTransactons.forEach(tx => {
-        console.log(`[LB] Retransmitting transaction ${tx.requestId} ${JSON.stringify(tx)} `);
-        socket.emit(tx.event,tx,(resp)=> {
-            console.log(`[LB] Received response ${resp}`);
-            tx.callback(resp);
-        });
+        console.log(`[LB] Retransmitting transaction ${tx.requestId} ${JSON.stringify(tx)} `)
+        sendTransaction(tx);
+    });
+}
+
+function sendTransaction(tx) {
+    if(primaryServer === null || !primaryServer.connected) {
+        console.log(`[LB] No server available !!!`); 
+        return;
+    }
+    //console.log(`[LB] Sending transaction ${tx.requestId} ${JSON.stringify(tx)} `);
+    primaryServer.emit(tx.event,tx,(resp)=> {
+        //console.log(`[LB] Received response ${resp}`);
+        if(tx.callback !== undefined) tx.callback(resp);
+        nounceList.delete(tx.requestId);
+        pendingTransactons.splice(pendingTransactons.indexOf(tx),1);
     });
 }
 
@@ -70,19 +82,20 @@ serversIp.forEach(ip => {
    });
 });
 
-function forwardRequest(event,data,callback) {
-    data = Object.assign(data,{requestId:requestId++, event: event, callback:callback});
-    pendingTransactons.push(data);
-    console.log(`[LB] Forwarding '${event}' with ${JSON.stringify(data)} as transaction ${data.requestId}`);
-    // if no available server
-    if(primaryServer === null || !primaryServer.connected) {
-        console.log(`[LB] No server available !!!`); 
-        return;
+function getNounce() {
+    while(true) {
+        let candidate = (new Date()).getTime() + '' + parseInt(Math.random()*10000);
+        if(!nounceList.has(candidate)) {
+            return candidate;
+        }
     }
-    primaryServer.emit(event,data,(resp)=>{
-        console.log(`[LB] Received response ${resp}`);
-        callback(resp);
-    });
+}
+
+function forwardRequest(event,data,callback) {
+    let tx = Object.assign(data,{requestId:getNounce(), event: event, callback:callback});
+    pendingTransactons.push(tx);
+    //console.log(`[LB] Forwarding '${event}' as transaction ${tx.requestId}`);
+    sendTransaction(tx);
 }
 
 app.get('/', function(req, res){

@@ -33,52 +33,121 @@ io.on('connection', function(socket){
     socket.userId = userId++;
     console.log(`New connection to server`);
     
-    socket.on('login', (data,callback) => {
+    socket.on('login', async (data,callback) => {
         console.log(`[SERV] Login as ${data.username}`);
-        connectionPool.getConnection(async (err, conn) => {
-            if(err) {
-                console.log(`[SERV] getConnection error`);
-                return;
-            }
-            try {
-                let result = await queryPromise(conn,data.requestId,'INSERT INTO user_record VALUES (?);',[data.username]);
-                console.log(`[SERV] Success ${result}`);
-                callback({status:"SUCCESS",result:result});
-            }
-            catch(e) {
-                console.log(`[SERV] Error ${e.sql}`);
-                callback({status:"ERROR",result:e});
-            }
-        });
+        try {
+            let result = await queryPromise(data.requestId,'INSERT INTO user_record(username) VALUES (?) WHERE NOT EXISTS (SELECT * FROM user_record WHERE username=?);',[data.username,data.username]);
+            callback({status:"SUCCESS", result:result});
+        }
+        catch(e) {
+            callback({status:"ERROR", result:e});
+        }
     });
     
-    socket.on('createGroup', ([username, groupId]) => {
-        console.log(`[SERV] ${username} create group ${groupId}`);
+    socket.on('createGroup',async (data, callback) => {
+        console.log(`[SERV] ${data.username} create group ${data.name}`);
+        try {
+            let result = await queryPromise(data.requestId,'INSERT INTO group_record(group_id) VALUES (?); INSERT INTO user_join_group(username, group_id) VALUES (?, ?);',[data.name,data.username, data.name]);
+            callback({status:"SUCCESS", result:result});
+        }
+        catch(e) {
+            callback({status:"ERROR", result:e});
+        }
+    });
+    
+    socket.on('joinGroup',async (data, callback) => {
+        // data.username    = username
+        // data.name        = group name
+        console.log(`[SERV] ${data.username} join group ${data.name}`);
+        try {
+            let result = await queryPromise(data.requestId,'INSERT INTO user_join_group(username, group_id) VALUES (?, ?);',[data.username, data.name]);
+            callback({status:"SUCCESS", result:result});
+        }
+        catch(e) {
+            callback({status:"ERROR", result:e});
+        }
+    });
+    
+    socket.on('getAvailableGroup',async (data, callback) => {
+        // data.username
+        try {
+            let result = await queryPromise(data.requestId,'SELECT * FROM group_record G WHERE NOT EXISTS (SELECT * FROM user_join_group WHERE username=? AND group_id=G.group_id) ORDER BY group_id ASC;',data.username);
+            callback({status:"SUCCESS", result:result[2]});
+        }
+        catch(e) {
+            console.log(`[SERV] Get available group ${data.username}`);
+            callback({status:"ERROR", result:e.sql});
+        }
+    });
+    
+    socket.on('getJoinedGroup',async (data, callback) => {
+        // data.username    = Username
+        //console.log(`[SERV] Get join group`);
+        try {
+            let result = await queryPromise(data.requestId,'SELECT * FROM user_join_group WHERE username=?;',data.username);
+            callback({status:"SUCCESS", result:result[2]});
+        }
+        catch(e) {
+            console.log(`[SERV] ERROR getJoinedGroup ${data.username}`);
+            callback({status:"ERROR", result:e.sql});
+        }
+    });
+    
+    socket.on('getGroupChat',async (data, callback) => {
+        // data.name    = Group name
+        // data.ack     = ACKNOWLEDGE
+        //console.log(`[SERV] Get group chat ${data.name}, ${data.ack}`);
+        try {
+            let result = await queryPromise(data.requestId,'SELECT * FROM message_record WHERE group_id=? AND message_id > ? ORDER BY message_id ASC;',[data.name,data.ack]);
+            callback({status:"SUCCESS", result:result[2]});
+        }
+        catch(e) {
+            console.log(`[SERV] ERROR getGroupChat ${data.name}, ${data.ack}`);
+            callback({status:"ERROR", result:e.sql});
+        }
+    });
+    
+    socket.on('sendMessage',async (data, callback) => {
+        // data.username = Username
+        // data.name    = Group name
+        // data.message = message
+        console.log(`[SERV] Chat group ${data.username}, ${data.name} TEXT ${data.message}`);
+        try {
+            let result = await queryPromise(data.requestId,'INSERT INTO message_record(group_id,message_text,message_sender) VALUES(?,?,?);',[data.name, data.message, data.username]);
+            callback({status:"SUCCESS", result:result[2]});
+        }
+        catch(e) {
+            callback({status:"ERROR", result:e.sql});
+        }
     });
     
     socket.on('setPrimaryServer', () => {
         console.log(`[SERV] Set as primary server`);
     });
     
-    socket.on('chat', (gid, msg) => {
-        console.log("CHAT",msg);
-    });
-    
-    socket.on('ack', (gid, id) => {
-      
-    })
 });
 
-function queryPromise(conn,requestId,queryString,queryParams) {
+function queryPromise(requestId,queryString,queryParams) {
     return new Promise((res,rej) => {
-        conn.query(
+        connectionPool.getConnection(async (err, conn) => {
+            if(err) {
+                console.log(`[SERV] getConnection error`);
+                rej("GET_CONNECTION_ERROR");
+                return;
+            }
+            conn.query(
 `START TRANSACTION;
-#INSERT INTO transaction_record(record_id) VALUES (${requestId});
+INSERT INTO transaction_record(record_id) VALUES (${requestId});
 ${queryString}
-COMMIT;`,queryParams,(err,result,field) => {
-            if(err) rej(err);
-            res(result);
-        })
-        
+COMMIT;`,
+            queryParams,(err,result,field) => {
+                conn.release();
+                if(err) {
+                    console.log("SQL Error",err,err.sql);
+                    rej(err);
+                }
+                res(result);
+            })
+        }); 
     });
 }
