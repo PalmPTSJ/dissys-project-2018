@@ -1,0 +1,8 @@
+module.exports = {
+    db : {
+        user : "root",
+        pass : "password"
+    }
+}
+
+// flll your database username and password and rename this file to config.js
