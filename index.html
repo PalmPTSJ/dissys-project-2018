@@ -5,32 +5,54 @@
     <style>
       html,body{
         height: 100%;
+        background-color:#FDF5ED;
       }
       #chatArea{
-        border: 1px solid black;
+        background-color: #FCF1E7;
         height: 100%;
-        overflow: scroll;
+        overflow-y: scroll;
+      }
+      #messageField{
+        margin: 6px 6px 6px 0;
       }
       .username{
         font-size: 1.2em;
         text: bold;
       }
+      .buttonStyle{
+        margin: 6px 6px 6px 0;
+      }
       .message{
 
       }
+      .logo{
+        margin: 2px;
+      }
       .timestamp{
         font-size: 0.8em;
+        float: right;
       }
-      .my{
-        background-color: lightblue;
+      .my .username {
+        color:green;
       }
-      .your{
+      .sidebar {
+        background-color: #FCF1E7;
+      }
+      .toolbar{
+        height: 30px;
+        background-color: #231C3B;
+        color: #FCF1E7;
+      }
 
+      #myGroupResult > div {
+        border: 1px solid black;
+        margin: 5px;
+        padding: 5px;
       }
     </style>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" crossorigin="anonymous">
   </head>
-  <body>
+  <body style="overflow-x: hidden;">
     <div class="modal" tabindex="-1" role="dialog" id="enterUsernameModal">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -69,23 +91,27 @@
       </div>
     </div>
     <div class=" d-flex flex-column h-100">
-      <div class="d-flex" style="background-color:lightblue;">
-        <div>Welcome, <span id="usernameSpan"></span></div>
+      <div class="d-flex toolbar" style="flex: 0 5%">
+        <div class="logo">Welcome, <span id="usernameSpan"></span></div>
         <div class="ml-auto">Status: <span id="statusSpan">NO</span> </div>
       </div>
-      <div class="row flex-grow-1">
-        <div class="col-md-3">
+      <div class="row" style="flex-basis: 95%;">
+        <div class="col-md-3 sidebar">
+          <h4>Group List</h4>
           <div id="myGroupResult"></div>
-          <button class="btn btn-info btn-block" onclick="displayGroups()">+</button>
+          <button class="btn btn-info btn-block" style="margin-top:10px; border:none !important; background-color:#BE7DB7!important;" onclick="displayGroups()">Add group</button>
         </div>
         <div class="col-md-9 d-flex flex-column">
-          <div><strong id="groupNameResult">Group NMae</strong></div>
-          <div id="chatArea" class="clearfix flex-grow-1">
-            <div style="font-size: 20em">X</div>
+          <h4><strong id="groupNameResult">Group Name</strong></h4>
+          <div id="chatArea" class="clearfix flex-grow-1 chatStyle">
+            <div class="d-flex flex-column justify-content-center align-items-center h-100">
+              <div style="font-size: 20em; color: #231C3B; font-size: 1.6em;">Select one of the groups from the list</div>
+            </div>
+            
           </div>
           <div class="d-flex">
-            <input type="text" class="flex-grow-1" onkeydown="sendMessage0(event)" id="messageField" placeholder="Texts here">
-            <button class="btn btn-success btn-lg" onclick="sendMessage()">&#62;</button>
+            <input type="text" class="flex-grow-1" onkeydown="sendMessage0(event)" id="messageField" placeholder="Type here...">
+            <button class="btn btn-success btn-lg buttonStyle" style="background-color:#BE7DB7!important; border: none!important;" onclick="sendMessage()">Send</button>
           </div>
         </div>
       </div>
@@ -128,7 +154,7 @@
       },x=>{
         console.log(x)
         x.result.map(y=>y['group_id']).forEach(y=>{
-          $('#groupListResult').prepend(`<div onclick="joinGroup('${y}')">${y}</div>`)
+          $('#groupListResult').prepend(`<div style="cursor:pointer; border:1px solid black; padding:5px; margin:5px;" onclick="joinGroup('${y}')">${y}</div>`)
         })
       });
     }
@@ -147,9 +173,9 @@
             notiState[y]=true
           }
           $('#myGroupResult').append(`<div>
-            <span onclick="selectGroup('${y}')">${y} (${unreadCount[y]})</span>
-            <span class="float-right" onclick="toggleNotiState('${y}')">${notiState[y]?'&#x1f514;':'&#x1f515'}</span>
-            <span class="float-right" onclick="leaveGroup('${y}')">X</span>
+            <span style="cursor:pointer;" onclick="selectGroup('${y}')">${y} (${unreadCount[y]})</span>
+            <span style="cursor:pointer;" class="float-right" onclick="toggleNotiState('${y}')">${notiState[y]?'&#x1f514;':'&#x1f515'}</span>
+            &nbsp;<span style="cursor:pointer;" class="float-right" onclick="leaveGroup('${y}')">&#10060</span>
             </div>`)
         })
       });
@@ -157,7 +183,7 @@
     function render(y){
       let d = new Date(y.message_timestamp)
       $('#chatArea').append(`<div class="${y.message_sender==username?'my':'your'}">
-          <span class="username">${y.message_sender} :</span> <span class="message">${y.message_text}</span> <span class="timestamp">${d.toLocaleTimeString()}</span>
+          <span class="username" style="font-weight:900">${y.message_sender} &nbsp;</span> <span class="message">${y.message_text}</span> <span class="timestamp">${d.toLocaleTimeString()}</span>
         </div>`)
       $('#chatArea').animate({scrollTop: 999999999999999},30)
     }
