@@ -267,6 +267,7 @@
     }
     function sendMessage(){
       let message=$('#messageField').val()
+      if(message.length == 0) return;
       socket.emit('request', {
         action:'sendMessage',
         username:username,

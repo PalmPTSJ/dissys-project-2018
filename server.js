@@ -60,7 +60,7 @@ io.on('connection', function(socket){
         // data.name        = group name
         console.log(`[SERV] User ${data.username} join group ${data.name}`);
         try {
-            let result = await queryPromise(data.requestId,'INSERT INTO user_join_group(username, group_id) VALUES (?, ?);',[data.username, data.name]);
+            let result = await queryPromise(data.requestId,'INSERT INTO user_join_group(username, group_id) VALUES (?, ?); INSERT INTO message_record(group_id,message_text,message_sender) VALUES(?,?,?);',[data.username, data.name,data.name, 'User '+data.username+' joins the group', data.username]);
             callback({status:"SUCCESS", result:result});
         }
         catch(e) {
@@ -102,7 +102,7 @@ io.on('connection', function(socket){
             callback({status:"SUCCESS", result:result[2]});
         }
         catch(e) {
-            console.log(`[SERV] ERROR getGroupChat ${data.name}, ${data.ack}`);
+            //console.log(`[SERV] ERROR getGroupChat ${data.name}, ${data.ack}`);
             callback({status:"ERROR", result:e.sql});
         }
     });
@@ -112,11 +112,11 @@ io.on('connection', function(socket){
         // data.username = ACKNOWLEDGE
         //console.log(`[SERV] Get group chat ${data.name}, ${data.ack}`);
         try {
-            let result = await queryPromise(data.requestId,'DELETE FROM user_join_group WHERE username=? AND group_id=?;',[data.username,data.name]);
+            let result = await queryPromise(data.requestId,'DELETE FROM user_join_group WHERE username=? AND group_id=?; INSERT INTO message_record(group_id,message_text,message_sender) VALUES(?,?,?);',[data.username,data.name,data.name, 'User '+data.username+' leaves the group', data.username]);
             callback({status:"SUCCESS", result:result});
         }
         catch(e) {
-            console.log(`[SERV] ERROR getGroupChat ${data.name}, ${data.ack}`);
+            //console.log(`[SERV] ERROR leaveGroup ${data.name}, ${data.ack}`);
             callback({status:"ERROR", result:e.sql});
         }
     });
